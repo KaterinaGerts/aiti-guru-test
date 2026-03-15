@@ -1,3 +1,22 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@config "../tailwind.config.js";
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.checkbox-products {
+  appearance: none;
+  cursor: pointer;
+  min-width: 1rem;
+  min-height: 1rem;
+}
+.checkbox-products:checked {
+  background-color: #3c538e;
+  border-color: #3c538e;
+}
+.checkbox-products:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(60, 83, 142, 0.2);
+}

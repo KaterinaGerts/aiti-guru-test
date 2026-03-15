@@ -1,4 +1,4 @@
-import { request } from './request'
+import { apiRequest } from './client'
 
 export interface Product {
   id: number
@@ -31,33 +31,21 @@ export interface ProductSearchParams {
 }
 
 export async function fetchProducts(params?: ProductSearchParams): Promise<ProductsResponse> {
-  return request<ProductsResponse>(
-    {
-      url: '/products',
-      method: 'GET',
-      params,
-    },
+  return apiRequest<ProductsResponse>(
+    '/products',
+    { method: 'GET', params: params as Record<string, string | number | undefined> },
     'Ошибка при загрузке товаров с сервера',
   )
 }
 
 export async function fetchProductById(id: number): Promise<Product> {
-  return request<Product>(
-    {
-      url: `/products/${id}`,
-      method: 'GET',
-    },
-    'Ошибка при загрузке товара',
-  )
+  return apiRequest<Product>(`/products/${id}`, { method: 'GET' }, 'Ошибка при загрузке товара')
 }
 
 export async function searchProducts(query: string): Promise<ProductsResponse> {
-  return request<ProductsResponse>(
-    {
-      url: '/products/search',
-      method: 'GET',
-      params: { q: query },
-    },
+  return apiRequest<ProductsResponse>(
+    '/products/search',
+    { method: 'GET', params: { q: query } },
     'Ошибка при поиске товаров',
   )
 }
@@ -69,21 +57,17 @@ export interface ProductCategory {
 }
 
 export async function fetchProductCategories(): Promise<ProductCategory[]> {
-  return request<ProductCategory[]>(
-    {
-      url: '/products/categories',
-      method: 'GET',
-    },
+  return apiRequest<ProductCategory[]>(
+    '/products/categories',
+    { method: 'GET' },
     'Ошибка при загрузке категорий',
   )
 }
 
 export async function fetchProductCategoryList(): Promise<string[]> {
-  return request<string[]>(
-    {
-      url: '/products/category-list',
-      method: 'GET',
-    },
+  return apiRequest<string[]>(
+    '/products/category-list',
+    { method: 'GET' },
     'Ошибка при загрузке списка категорий',
   )
 }
@@ -92,12 +76,9 @@ export async function fetchProductsByCategory(
   category: string,
   params?: Omit<ProductSearchParams, 'q'>,
 ): Promise<ProductsResponse> {
-  return request<ProductsResponse>(
-    {
-      url: `/products/category/${category}`,
-      method: 'GET',
-      params,
-    },
+  return apiRequest<ProductsResponse>(
+    `/products/category/${category}`,
+    { method: 'GET', params: params as Record<string, string | number | undefined> },
     'Ошибка при загрузке товаров категории',
   )
 }
@@ -112,12 +93,9 @@ export interface CreateProductPayload {
 }
 
 export async function createProduct(payload: CreateProductPayload): Promise<Product> {
-  return request<Product>(
-    {
-      url: '/products/add',
-      method: 'POST',
-      data: payload,
-    },
+  return apiRequest<Product>(
+    '/products/add',
+    { method: 'POST', body: payload },
     'Ошибка при добавлении товара',
   )
 }
@@ -132,22 +110,13 @@ export interface UpdateProductPayload {
 }
 
 export async function updateProduct(id: number, payload: UpdateProductPayload): Promise<Product> {
-  return request<Product>(
-    {
-      url: `/products/${id}`,
-      method: 'PUT',
-      data: payload,
-    },
+  return apiRequest<Product>(
+    `/products/${id}`,
+    { method: 'PUT', body: payload },
     'Ошибка при обновлении товара',
   )
 }
 
 export async function deleteProduct(id: number): Promise<Product> {
-  return request<Product>(
-    {
-      url: `/products/${id}`,
-      method: 'DELETE',
-    },
-    'Ошибка при удалении товара',
-  )
+  return apiRequest<Product>(`/products/${id}`, { method: 'DELETE' }, 'Ошибка при удалении товара')
 }
