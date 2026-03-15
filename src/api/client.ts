@@ -1,10 +1,11 @@
 import { getAuthToken } from '../stores/authStore'
 
-const BASE_URL = import.meta.env.VITE_API_URL as string
+const DEFAULT_API_URL = 'https://dummyjson.com'
+const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || DEFAULT_API_URL
 
 function buildUrl(path: string, params?: Record<string, string | number | undefined>): string {
   const base = BASE_URL.replace(/\/$/, '')
-  const pathStr = path.replace(/^\//, '')
+  const pathStr = (path ?? '').replace(/^\//, '')
   const url = new URL(pathStr, `${base}/`)
   if (params) {
     Object.entries(params).forEach(([key, value]) => {

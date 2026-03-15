@@ -10,6 +10,15 @@ import eyeIcon from '../../assets/svg/eye.svg'
 
 const initialValues = { username: '', password: '' }
 
+type FieldErrors = { username?: string; password?: string }
+
+function getFieldErrors(username: string, password: string): FieldErrors {
+  const next: FieldErrors = {}
+  if (!username.trim()) next.username = 'Введите логин'
+  if (!password) next.password = 'Введите пароль'
+  return next
+}
+
 const iconImgProps = {
   className: 'h-6 w-6 shrink-0',
   width: 24,
@@ -22,18 +31,25 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const setAuth = useAuthStore((s) => s.setAuth)
 
   const validate = useCallback((): boolean => {
-    const next: { username?: string; password?: string } = {}
-    if (!values.username.trim()) next.username = 'Обязательное поле'
-    if (!values.password) next.password = 'Обязательное поле'
+    const next = getFieldErrors(values.username, values.password)
     setFieldErrors(next)
     return Object.keys(next).length === 0
   }, [values.username, values.password])
+
+  const handleBlur = useCallback(
+    (e: React.FocusEvent<HTMLInputElement>) => {
+      const { name } = e.target
+      const next = getFieldErrors(values.username, values.password)
+      setFieldErrors((prev) => ({ ...prev, [name]: next[name as keyof FieldErrors] }))
+    },
+    [values.username, values.password],
+  )
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -71,7 +87,7 @@ export function LoginForm() {
   }, [])
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
       <div className="flex flex-col gap-4">
         <InputWithIcon
           id="username"
@@ -80,9 +96,11 @@ export function LoginForm() {
           label="Логин"
           value={values.username}
           onChange={handleChange}
+          onBlur={handleBlur}
           autoComplete="username"
           disabled={isSubmitting}
           placeholder="Введите логин"
+          required
           leftIcon={<img src={userIcon} alt="" {...iconImgProps} />}
           trailing={
             values.username ? (
@@ -106,9 +124,11 @@ export function LoginForm() {
           label="Пароль"
           value={values.password}
           onChange={handleChange}
+          onBlur={handleBlur}
           autoComplete="current-password"
           disabled={isSubmitting}
           placeholder="Введите пароль"
+          required
           leftIcon={<img src={lockIcon} alt="" {...iconImgProps} />}
           trailing={
             <button
