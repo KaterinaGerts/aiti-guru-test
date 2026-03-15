@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import type { Product } from '../../api/products'
 import { useToastStore } from '../../stores/toastStore'
 import { Button } from '../ui/Button'
 import { FormField } from '../ui/FormField'
@@ -9,23 +10,32 @@ import {
   type ProductFormValues,
 } from '../../utils/validateProductForm'
 
-export type AddProductFormValues = ProductFormValues
+export type EditProductFormValues = ProductFormValues
 
-interface AddProductModalProps {
+interface EditProductModalProps {
   isOpen: boolean
+  product: Product | null
   onClose: () => void
-  onAdd: (values: AddProductFormValues) => void
+  onSave: (product: Product, values: EditProductFormValues) => void
 }
 
-const initialValues: ProductFormValues = {
-  title: '',
-  price: '',
-  brand: '',
-  sku: '',
+function productToValues(product: Product): ProductFormValues {
+  return {
+    title: product.title,
+    price: String(product.price),
+    brand: product.brand,
+    sku: product.sku ?? '',
+  }
 }
 
-export function AddProductModal({ isOpen, onClose, onAdd }: AddProductModalProps) {
-  const [values, setValues] = useState<ProductFormValues>(initialValues)
+interface EditProductFormProps {
+  product: Product
+  onClose: () => void
+  onSave: (product: Product, values: EditProductFormValues) => void
+}
+
+function EditProductForm({ product, onClose, onSave }: EditProductFormProps) {
+  const [values, setValues] = useState<ProductFormValues>(() => productToValues(product))
   const [errors, setErrors] = useState<Partial<Record<keyof ProductFormValues, string>>>({})
   const showToast = useToastStore((s) => s.show)
 
@@ -41,28 +51,23 @@ export function AddProductModal({ isOpen, onClose, onAdd }: AddProductModalProps
       const nextErrors = validateProductForm(values)
       setErrors(nextErrors)
       if (hasValidationErrors(nextErrors)) return
-      onAdd(values)
-      setValues(initialValues)
-      setErrors({})
+      onSave(product, values)
       onClose()
-      showToast('Товар успешно добавлен')
+      showToast('Товар успешно изменён')
     },
-    [values, onAdd, onClose, showToast],
+    [product, values, onSave, onClose, showToast],
   )
 
   const handleClose = useCallback(() => {
-    setValues(initialValues)
     setErrors({})
     onClose()
   }, [onClose])
 
-  if (!isOpen) return null
-
   return (
-    <Modal titleId="add-product-title" title="Добавить товар">
+    <Modal titleId="edit-product-title" title="Редактировать товар">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormField
-          id="add-title"
+          id="edit-title"
           name="title"
           label="Наименование"
           value={values.title}
@@ -71,7 +76,7 @@ export function AddProductModal({ isOpen, onClose, onAdd }: AddProductModalProps
           error={errors.title}
         />
         <FormField
-          id="add-price"
+          id="edit-price"
           name="price"
           type="number"
           min={0}
@@ -83,7 +88,7 @@ export function AddProductModal({ isOpen, onClose, onAdd }: AddProductModalProps
           error={errors.price}
         />
         <FormField
-          id="add-brand"
+          id="edit-brand"
           name="brand"
           label="Вендор"
           value={values.brand}
@@ -92,7 +97,7 @@ export function AddProductModal({ isOpen, onClose, onAdd }: AddProductModalProps
           error={errors.brand}
         />
         <FormField
-          id="add-sku"
+          id="edit-sku"
           name="sku"
           label="Артикул"
           value={values.sku}
@@ -105,10 +110,15 @@ export function AddProductModal({ isOpen, onClose, onAdd }: AddProductModalProps
             Отмена
           </Button>
           <Button type="submit" variant="primary">
-            Добавить
+            Сохранить
           </Button>
         </div>
       </form>
     </Modal>
   )
+}
+
+export function EditProductModal({ isOpen, product, onClose, onSave }: EditProductModalProps) {
+  if (!isOpen || !product) return null
+  return <EditProductForm key={product.id} product={product} onClose={onClose} onSave={onSave} />
 }

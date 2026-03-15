@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { login } from '../../api/auth'
+import { InputWithIcon } from '../ui/InputWithIcon'
 import { useAuthStore } from '../../stores/authStore'
 import userIcon from '../../assets/svg/user.svg'
 import xIcon from '../../assets/svg/x.svg'
@@ -8,6 +9,13 @@ import eyeOffIcon from '../../assets/svg/eye-off.svg'
 import eyeIcon from '../../assets/svg/eye.svg'
 
 const initialValues = { username: '', password: '' }
+
+const iconImgProps = {
+  className: 'h-6 w-6 shrink-0',
+  width: 24,
+  height: 24,
+  'aria-hidden': true,
+} as const
 
 export function LoginForm() {
   const [values, setValues] = useState(initialValues)
@@ -65,31 +73,19 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="username" className="text-lg font-medium text-[#232323]">
-            Логин
-          </label>
-          <div className="flex h-12 items-center gap-3 rounded-xl border border-[#EDEDED] bg-white px-4 py-3.5">
-            <img
-              src={userIcon}
-              alt=""
-              className="h-6 w-6 shrink-0"
-              width={24}
-              height={24}
-              aria-hidden
-            />
-            <input
-              id="username"
-              name="username"
-              type="text"
-              value={values.username}
-              onChange={handleChange}
-              autoComplete="username"
-              disabled={isSubmitting}
-              className="min-w-0 flex-1 bg-transparent text-lg text-[#232323] outline-none placeholder:text-gray-400 disabled:opacity-60"
-              placeholder="Введите логин"
-            />
-            {values.username ? (
+        <InputWithIcon
+          id="username"
+          name="username"
+          type="text"
+          label="Логин"
+          value={values.username}
+          onChange={handleChange}
+          autoComplete="username"
+          disabled={isSubmitting}
+          placeholder="Введите логин"
+          leftIcon={<img src={userIcon} alt="" {...iconImgProps} />}
+          trailing={
+            values.username ? (
               <button
                 type="button"
                 onClick={clearUsername}
@@ -99,38 +95,22 @@ export function LoginForm() {
               >
                 <img src={xIcon} alt="" className="h-4 w-4" width={17} height={18} aria-hidden />
               </button>
-            ) : null}
-          </div>
-          {fieldErrors.username && (
-            <p className="text-sm text-red-600" role="alert">
-              {fieldErrors.username}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="password" className="text-lg font-medium text-[#232323]">
-            Пароль
-          </label>
-          <div className="flex h-12 items-center gap-3 rounded-xl border border-[#EDEDED] bg-white px-4 py-3.5">
-            <img
-              src={lockIcon}
-              alt=""
-              className="h-6 w-6 shrink-0"
-              width={24}
-              height={24}
-              aria-hidden
-            />
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              value={values.password}
-              onChange={handleChange}
-              autoComplete="current-password"
-              disabled={isSubmitting}
-              className="min-w-0 flex-1 bg-transparent text-lg text-[#232323] outline-none placeholder:text-gray-400 disabled:opacity-60"
-              placeholder="Введите пароль"
-            />
+            ) : undefined
+          }
+          error={fieldErrors.username}
+        />
+        <InputWithIcon
+          id="password"
+          name="password"
+          type={showPassword ? 'text' : 'password'}
+          label="Пароль"
+          value={values.password}
+          onChange={handleChange}
+          autoComplete="current-password"
+          disabled={isSubmitting}
+          placeholder="Введите пароль"
+          leftIcon={<img src={lockIcon} alt="" {...iconImgProps} />}
+          trailing={
             <button
               type="button"
               onClick={() => setShowPassword((p) => !p)}
@@ -147,13 +127,9 @@ export function LoginForm() {
                 aria-hidden
               />
             </button>
-          </div>
-          {fieldErrors.password && (
-            <p className="text-sm text-red-600" role="alert">
-              {fieldErrors.password}
-            </p>
-          )}
-        </div>
+          }
+          error={fieldErrors.password}
+        />
       </div>
 
       <label className="flex cursor-pointer items-center gap-2.5">

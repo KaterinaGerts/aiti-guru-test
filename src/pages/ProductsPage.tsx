@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchProducts, searchProducts } from '../api/products'
+import { deleteProduct, fetchProducts, searchProducts } from '../api/products'
 import type { Product } from '../api/products'
 import { AddProductModal, type AddProductFormValues } from '../components/products/AddProductModal'
+import {
+  EditProductModal,
+  type EditProductFormValues,
+} from '../components/products/EditProductModal'
 import { ProductTable } from '../components/products/ProductTable'
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon, Spinner } from '../components/ui'
 import { useAuthStore } from '../stores/authStore'
+import { useToastStore } from '../stores/toastStore'
 import refreshIconUrl from '../assets/svg/vector_1.svg'
 
 const PAGE_SIZE = 20
@@ -23,7 +29,12 @@ export function ProductsPage() {
   const [sortBy, setSortBy] = useState<SortKey | null>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [productToEdit, setProductToEdit] = useState<Product | null>(null)
   const [localProducts, setLocalProducts] = useState<Product[]>([])
+  const [editedProducts, setEditedProducts] = useState<Record<number, Product>>({})
+  const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
+  const showToast = useToastStore((s) => s.show)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const effectiveSkip = (page - 1) * PAGE_SIZE
@@ -65,19 +76,25 @@ export function ProductsPage() {
     loadProducts(searchQuery, searchQuery ? 0 : effectiveSkip)
   }, [searchQuery, effectiveSkip, loadProducts])
 
-  const displayProducts = useMemo(
+  const baseProducts = useMemo(
     () => (searchQuery ? products : [...localProducts, ...products]),
     [localProducts, products, searchQuery],
   )
+  const displayProducts = useMemo(
+    () => baseProducts.filter((p) => !deletedIds.has(p.id)).map((p) => editedProducts[p.id] ?? p),
+    [baseProducts, editedProducts, deletedIds],
+  )
 
-  const displayTotal = searchQuery ? total : total + localProducts.length
+  const displayTotal = searchQuery
+    ? displayProducts.length
+    : Math.max(0, total + localProducts.length - deletedIds.size)
   const totalPages = searchQuery ? 1 : Math.max(1, Math.ceil(displayTotal / PAGE_SIZE))
   const startItem = displayTotal === 0 ? 0 : searchQuery ? 1 : (page - 1) * PAGE_SIZE + 1
   const endItem =
     displayTotal === 0
       ? 0
       : searchQuery
-        ? displayTotal
+        ? displayProducts.length
         : Math.min((page - 1) * PAGE_SIZE + displayProducts.length, displayTotal)
 
   const handleSort = useCallback((key: SortKey) => {
@@ -104,18 +121,66 @@ export function ProductsPage() {
     setLocalProducts((prev) => [newProduct, ...prev])
   }, [])
 
+  const handleEdit = useCallback((product: Product) => {
+    setProductToEdit(product)
+    setEditModalOpen(true)
+  }, [])
+
+  const handleSaveEdit = useCallback((product: Product, values: EditProductFormValues) => {
+    const updated: Product = {
+      ...product,
+      title: values.title.trim(),
+      price: Number(values.price) || 0,
+      brand: values.brand.trim(),
+      sku: values.sku.trim(),
+    }
+    if (product.id < 0) {
+      setLocalProducts((prev) => prev.map((p) => (p.id === product.id ? updated : p)))
+    } else {
+      setEditedProducts((prev) => ({ ...prev, [product.id]: updated }))
+    }
+    setProductToEdit(null)
+    setEditModalOpen(false)
+  }, [])
+
+  const handleDelete = useCallback(
+    async (product: Product) => {
+      if (product.id < 0) {
+        setLocalProducts((prev) => prev.filter((p) => p.id !== product.id))
+        showToast('Товар удалён')
+        return
+      }
+      try {
+        await deleteProduct(product.id)
+        setDeletedIds((prev) => new Set(prev).add(product.id))
+        setEditedProducts((prev) => {
+          const next = { ...prev }
+          delete next[product.id]
+          return next
+        })
+        showToast('Товар удалён')
+      } catch {
+        showToast('Не удалось удалить товар')
+      }
+    },
+    [showToast],
+  )
+
   const handleRefresh = useCallback(() => {
     loadProducts(searchQuery, searchQuery ? 0 : (page - 1) * PAGE_SIZE)
   }, [loadProducts, searchQuery, page])
 
   return (
-    <div className="min-h-screen bg-[#F6F6F6]">
+    <main className="min-h-screen bg-[#F6F6F6]">
       <div className="mx-auto max-w-6xl px-4 py-5 pr-0 md:pr-8">
-        <nav className="mb-8 flex items-center justify-between rounded-[10px] bg-white px-6 py-4">
-          <h1 className="text-xl font-semibold text-[#000]">Товары</h1>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+        <nav
+          className="mb-8 grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-[10px] bg-white px-6 py-4"
+          aria-label="Основная навигация"
+        >
+          <h1 className="text-xl font-semibold text-black">Товары</h1>
+          <div className="flex min-w-0 justify-center">
+            <div className="relative w-full max-w-[1024px]">
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
                 <SearchIcon />
               </span>
               <input
@@ -123,10 +188,12 @@ export function ProductsPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Найти"
-                className="w-64 rounded-lg border-0 bg-[#F3F3F3] py-2.5 pl-10 pr-4 text-sm text-[#000] placeholder:text-[#9CA3AF] focus:ring-2 focus:ring-[#242EDB]/20"
+                className="w-full rounded-xl border-0 bg-[#F3F3F3] py-3 pl-11 pr-4 text-sm text-black placeholder:text-[#9CA3AF] outline-none focus:ring-2 focus:ring-[#242EDB]/10 focus:ring-inset"
                 aria-label="Поиск товаров"
               />
             </div>
+          </div>
+          <div className="flex justify-end">
             <button
               type="button"
               onClick={logout}
@@ -139,7 +206,7 @@ export function ProductsPage() {
 
         <section className="rounded-xl bg-white px-6 py-8">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-[#000]">Все позиции</h2>
+            <h2 className="text-lg font-semibold text-black">Все позиции</h2>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -161,70 +228,74 @@ export function ProductsPage() {
             </div>
           </div>
 
-          {loading && (
-            <div className="mb-4 h-1 w-full overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full animate-pulse bg-[#242EDB]"
-                style={{ width: '40%' }}
-                role="progressbar"
-                aria-valuenow={40}
-                aria-valuemin={0}
-                aria-valuemax={100}
+          {loading ? (
+            <div
+              className="flex min-h-[320px] items-center justify-center overflow-x-auto"
+              aria-busy="true"
+              aria-label="Загрузка товаров"
+            >
+              <Spinner
+                className="loader-spinner h-10 w-10 rounded-full border-2 border-[#E5E7EB] border-t-[#242EDB]"
+                aria-label="Загрузка товаров"
               />
             </div>
-          )}
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <ProductTable
+                  products={displayProducts}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </div>
 
-          <div className="overflow-x-auto">
-            <ProductTable
-              products={displayProducts}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSort={handleSort}
-            />
-          </div>
-
-          <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-row">
-            <p className="text-sm text-[#000]">
-              Показано {startItem}-{endItem} из {displayTotal}
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="rounded border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-                aria-label="Предыдущая страница"
-              >
-                <ChevronLeftIcon />
-              </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const p = i + 1
-                return (
+              <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-row">
+                <p className="text-sm text-black ">
+                  Показано {startItem}-{endItem} из {displayTotal}
+                </p>
+                <div className="flex items-center gap-1">
                   <button
-                    key={p}
                     type="button"
-                    onClick={() => setPage(p)}
-                    className={`min-w-[2.25rem] rounded px-2 py-1.5 text-sm font-medium ${
-                      page === p
-                        ? 'bg-[#797FEA] text-white'
-                        : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="rounded border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                    aria-label="Предыдущая страница"
                   >
-                    {p}
+                    <ChevronLeftIcon />
                   </button>
-                )
-              })}
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="rounded border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-                aria-label="Следующая страница"
-              >
-                <ChevronRightIcon />
-              </button>
-            </div>
-          </div>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const p = i + 1
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPage(p)}
+                        className={`min-w-9 rounded px-2 py-1.5 text-sm font-medium ${
+                          page === p
+                            ? 'bg-[#797FEA] text-white'
+                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="rounded border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                    aria-label="Следующая страница"
+                  >
+                    <ChevronRightIcon />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </section>
       </div>
 
@@ -233,62 +304,15 @@ export function ProductsPage() {
         onClose={() => setAddModalOpen(false)}
         onAdd={handleAddProduct}
       />
-    </div>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      <EditProductModal
+        isOpen={editModalOpen}
+        product={productToEdit}
+        onClose={() => {
+          setEditModalOpen(false)
+          setProductToEdit(null)
+        }}
+        onSave={handleSaveEdit}
       />
-    </svg>
-  )
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      className="h-5 w-5 shrink-0"
-      viewBox="0 0 52 27"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      <path
-        d="M26 6.5V20.5"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M19 13.5H33"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
+    </main>
   )
 }

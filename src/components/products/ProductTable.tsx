@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { Product } from '../../api/products'
 import { ProductTableRow } from './ProductTableRow'
 
@@ -10,6 +10,8 @@ interface ProductTableProps {
   sortBy: SortKey | null
   sortOrder: SortOrder
   onSort: (key: SortKey) => void
+  onEdit: (product: Product) => void
+  onDelete: (product: Product) => void
 }
 
 function sortProducts(products: Product[], sortBy: SortKey | null, order: SortOrder): Product[] {
@@ -30,17 +32,12 @@ export const ProductTable = memo(function ProductTable({
   sortBy,
   sortOrder,
   onSort,
+  onEdit,
+  onDelete,
 }: ProductTableProps) {
   const sorted = useMemo(
     () => sortProducts(products, sortBy, sortOrder),
     [products, sortBy, sortOrder],
-  )
-
-  const handleSort = useCallback(
-    (key: SortKey) => {
-      onSort(key)
-    },
-    [onSort],
   )
 
   return (
@@ -59,41 +56,46 @@ export const ProductTable = memo(function ProductTable({
           <th className="w-[min(280px,30%)] align-middle py-4 pr-4 text-left">
             <SortHeader
               label="Наименование"
+              sortKey="title"
               isActive={sortBy === 'title'}
               order={sortOrder}
-              onClick={() => handleSort('title')}
+              onSort={onSort}
             />
           </th>
           <th className="align-middle py-4 pr-4 text-left">
             <SortHeader
               label="Вендор"
+              sortKey="brand"
               isActive={sortBy === 'brand'}
               order={sortOrder}
-              onClick={() => handleSort('brand')}
+              onSort={onSort}
             />
           </th>
           <th className="align-middle py-4 pr-4 text-left">
             <SortHeader
               label="Артикул"
+              sortKey="sku"
               isActive={sortBy === 'sku'}
               order={sortOrder}
-              onClick={() => handleSort('sku')}
+              onSort={onSort}
             />
           </th>
           <th className="align-middle py-4 pr-4 text-left">
             <SortHeader
               label="Оценка"
+              sortKey="rating"
               isActive={sortBy === 'rating'}
               order={sortOrder}
-              onClick={() => handleSort('rating')}
+              onSort={onSort}
             />
           </th>
           <th className="align-middle py-4 pr-4 text-left">
             <SortHeader
               label="Цена, ₽"
+              sortKey="price"
               isActive={sortBy === 'price'}
               order={sortOrder}
-              onClick={() => handleSort('price')}
+              onSort={onSort}
             />
           </th>
           <th className="w-24 align-middle py-4 pr-5" />
@@ -101,28 +103,30 @@ export const ProductTable = memo(function ProductTable({
       </thead>
       <tbody>
         {sorted.map((product) => (
-          <ProductTableRow key={product.id} product={product} />
+          <ProductTableRow key={product.id} product={product} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </tbody>
     </table>
   )
 })
 
-function SortHeader({
+const SortHeader = memo(function SortHeader({
   label,
+  sortKey,
   isActive,
   order,
-  onClick,
+  onSort,
 }: {
   label: string
+  sortKey: SortKey
   isActive: boolean
   order: SortOrder
-  onClick: () => void
+  onSort: (key: SortKey) => void
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onSort(sortKey)}
       className="flex items-center gap-1 text-sm font-semibold text-[#9CA3AF] hover:text-[#374151]"
     >
       {label}
@@ -133,4 +137,4 @@ function SortHeader({
       )}
     </button>
   )
-}
+})

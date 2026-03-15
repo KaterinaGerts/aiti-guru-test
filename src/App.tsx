@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Toast } from './components/ui/Toast'
+import { Spinner, Toast } from './components/ui'
 import { LoginPage } from './pages/LoginPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { useAuthStore } from './stores/authStore'
@@ -15,9 +15,16 @@ export default function App() {
 
   if (!isHydrated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F6F6F6]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#242EDB] border-t-transparent" />
-      </div>
+      <main
+        className="flex min-h-screen items-center justify-center bg-[#F6F6F6]"
+        aria-busy="true"
+        aria-label="Загрузка приложения"
+      >
+        <Spinner
+          className="h-8 w-8 animate-spin rounded-full border-2 border-[#242EDB] border-t-transparent"
+          aria-label="Загрузка"
+        />
+      </main>
     )
   }
 
